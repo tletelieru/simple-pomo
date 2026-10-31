@@ -1,4 +1,4 @@
-import type { Session } from '../store'
+import type { Session } from './persist'
 
 export type Range = 'today' | 'week' | 'all'
 

@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { useStore } from '../store'
+import { useStore } from '../context'
+import { useMessages } from '../i18n/react'
 
 export default function CategoryPicker() {
   const { categories, activeCategory, setActiveCategory, addCategory, removeCategory } = useStore()
+  const t = useMessages()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
 
@@ -14,25 +16,24 @@ export default function CategoryPicker() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-white/60">Category</h2>
+      <h2 className="text-sm font-bold">{t.category}</h2>
       <div className="flex flex-wrap items-center gap-2">
         {categories.map((c) => (
           <span key={c} className="group relative">
             <button
               onClick={() => setActiveCategory(c)}
+              aria-pressed={activeCategory === c}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                activeCategory === c
-                  ? 'bg-red-500 text-white'
-                  : 'bg-white/10 text-white/80 hover:bg-white/20'
+                activeCategory === c ? 'bg-primary text-on-primary' : 'bg-soft text-ink'
               }`}
             >
-              {c}
+              {t.defaultCategories[c] ?? c}
             </button>
             {categories.length > 1 && (
               <button
                 onClick={() => removeCategory(c)}
-                aria-label={`Remove ${c}`}
-                className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-slate-900 text-xs text-white group-hover:flex"
+                aria-label={t.removeCategory(t.defaultCategories[c] ?? c)}
+                className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full border border-line bg-paper text-xs text-muted group-hover:flex [@media(hover:none)]:flex"
               >
                 ×
               </button>
@@ -50,15 +51,15 @@ export default function CategoryPicker() {
               if (e.key === 'Escape') setAdding(false)
             }}
             onBlur={submit}
-            placeholder="New category"
-            className="w-32 rounded-full bg-white/10 px-3 py-1.5 text-sm text-white placeholder:text-white/40 outline-none"
+            placeholder={t.newCategory}
+            className="w-36 rounded-full bg-soft px-3 py-1.5 text-sm outline-none placeholder:text-muted"
           />
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/60 transition hover:bg-white/10 hover:text-white"
+            className="rounded-full border border-dashed border-line px-3 py-1.5 text-sm text-muted transition hover:text-ink"
           >
-            + Add
+            + {t.addCategory}
           </button>
         )}
       </div>

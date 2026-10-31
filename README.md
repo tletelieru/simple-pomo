@@ -1,55 +1,80 @@
-# Simple Pomodoro
+# 🍅 Simple Pomodoro
 
-A simple, installable Pomodoro timer with per-category stats. Fully frontend, no backend —
-data is stored in the browser (localStorage) with JSON export/import. Deploys to GitHub Pages.
+A Pomodoro timer you just open and use. Tag your focus sessions, see where your time goes, and make
+it look the way you like.
 
-The lightweight sibling of the larger "Pomodoro / Solanum" project.
+**No account and no backend.** Your sessions and settings stay in your browser.
 
-## Stack
+**[Open Simple Pomodoro →](https://tletelieru.github.io/simple-pomo/)**
 
-- Vite + React + TypeScript
-- Tailwind CSS v4 (`@tailwindcss/vite`)
-- `vite-plugin-pwa` (installable, offline)
-- ESLint (typescript-eslint, flat config)
-- pnpm
+![Simple Pomodoro with glass cards over a sunset background, made with invented sessions](docs/screenshot.png)
 
-## Features
+_Screenshot made with invented sessions._
 
-- Focus / short break / long break with configurable durations and auto-cycle
-- Tag each focus session with a category; stats per category (today / week / all-time)
-- Settings: durations, rounds, auto-start, completion sound
-- Background switcher (gradients out of the box)
-- Optional ambience player (add your own tracks — see `CREDITS.md`)
-- Export / import your data as JSON
+## What you get
 
-## Develop
+- **Timer:** focus, short break and long break, with a long break every few rounds. Durations and
+  rounds are yours to set
+- **Pause and resume:** look at another mode without losing the session in progress. A running timer
+  also survives a page reload
+- **Categories:** tag each session as Work, Study, Read or your own
+- **Stats:** focus time and session count per category, for today, this week or all time
+- **Time display:** minutes and seconds, minutes only, or minutes with seconds in the last minute
+- **Floating timer:** keep the countdown on top of other apps, where the browser supports
+  Picture-in-Picture
+- **Ambience:** rain, waves and brown noise, generated in the browser
+- **Your music:** paste a YouTube, Spotify or SoundCloud link
+- **Your look:** backgrounds with dim and blur, glass cards, a main color and an optional animated ring
 
-```bash
+You can also turn on auto-start, a completion sound and notifications, and export or import your
+data as JSON.
+
+Available in English and Spanish, with light and dark mode. Install it as an app and the timer works
+offline.
+
+## Good to know
+
+- Data lives in one browser. Use export and import to move it to another device.
+- Browsers slow down hidden tabs. The time stays correct, but the sound or notification can arrive
+  when you come back.
+- Phones close the floating timer when the screen locks, and they control its size.
+- On phones, ambience and embedded players can stop when you leave the page. Spotify plays previews
+  unless you are logged in to it in that browser.
+- Your music needs an internet connection and does not follow the timer.
+
+## Run it locally
+
+Developed with Node 24 and pnpm 9.
+
+```sh
 pnpm install
-pnpm gen:icons   # generate PWA icons from public/favicon.svg
 pnpm dev
 ```
 
-## Build
+| Command          | What it does                               |
+| ---------------- | ------------------------------------------ |
+| `pnpm test`      | Runs the unit tests                        |
+| `pnpm lint`      | Runs ESLint                                |
+| `pnpm typecheck` | Runs the type checks                       |
+| `pnpm build`     | Builds the site                            |
+| `pnpm preview`   | Serves the build                           |
+| `pnpm gen:icons` | Generates the PWA icons from `favicon.svg` |
 
-```bash
-pnpm build
-pnpm preview
-```
+The service worker only runs in a build, so test installing and offline mode with `pnpm build` and
+`pnpm preview`.
 
-## Lint
+## How it works
 
-```bash
-pnpm lint
-```
+The timer stores when a block ends instead of counting ticks, so it stays right when the tab sleeps.
+Timer rules, saved data and link parsing are plain functions in `src/lib`, and the floating timer
+draws on a canvas streamed into a Picture-in-Picture video.
 
-## Deploy to GitHub Pages
+Built with React, TypeScript, Vite, Tailwind CSS and `vite-plugin-pwa`. Merges to `main` deploy to
+GitHub Pages through GitHub Actions.
 
-`vite.config.ts` sets `base: '/simple-pomo/'`. Rename it if the repo name differs.
-Build and publish `dist/` with a GitHub Actions workflow (Pages) or push `dist/` to the
-`gh-pages` branch. Then enable Pages in the repo settings.
+All UI text lives in `src/i18n/messages.ts`. Backgrounds and ambience are original, and `CREDITS.md`
+explains how to add more.
 
-## Assets
+---
 
-No third-party media is bundled by default. See `CREDITS.md` for vetted free sources and
-how to add background images and ambience tracks.
+Developed by [tletelieru](https://tletelieru.github.io/tletelieru/) · [GitHub](https://github.com/tletelieru)

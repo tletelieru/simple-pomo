@@ -1,73 +1,86 @@
 import { useEffect, useRef, useState } from 'react'
+import { useMessages } from '../i18n/react'
+import { startAmbience } from '../lib/ambience'
+import type { Ambience, AmbienceKind } from '../lib/ambience'
 import { tracks } from '../lib/assets'
+import { NoiseIcon, PauseIcon, PlayIcon, RainIcon, WavesIcon } from './icons'
+import MusicLink from './MusicLink'
+
+const ICONS: Record<AmbienceKind, () => React.JSX.Element> = {
+  rain: RainIcon,
+  waves: WavesIcon,
+  brown: NoiseIcon,
+}
 
 export default function AudioPlayer() {
+  const t = useMessages()
   const [index, setIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [volume, setVolume] = useState(0.5)
-  const ref = useRef<HTMLAudioElement>(null)
+  const ref = useRef<Ambience | null>(null)
 
-  useEffect(() => {
-    if (ref.current) ref.current.volume = volume
-  }, [volume, index])
+  useEffect(() => () => ref.current?.stop(), [])
 
-  if (tracks.length === 0) {
-    return (
-      <p className="text-center text-xs text-white/40">
-        Add .mp3 files to <code className="text-white/60">public/audio</code> and list them in{' '}
-        <code className="text-white/60">src/lib/assets.ts</code> to enable ambience.
-      </p>
-    )
-  }
-
-  const track = tracks[index]
-  const src = `${import.meta.env.BASE_URL}${track.src}`
-
-  function toggle() {
-    const el = ref.current
-    if (!el) return
-    if (playing) {
-      el.pause()
-      setPlaying(false)
-    } else {
-      void el.play()
-      setPlaying(true)
-    }
-  }
-
-  function next() {
-    setIndex((i) => (i + 1) % tracks.length)
+  function play(i: number) {
+    ref.current?.stop()
+    ref.current = startAmbience(tracks[i].kind, volume)
+    setIndex(i)
     setPlaying(true)
   }
 
+  function stop() {
+    ref.current?.stop()
+    ref.current = null
+    setPlaying(false)
+  }
+
+  function changeVolume(value: number) {
+    setVolume(value)
+    ref.current?.setVolume(value)
+  }
+
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2 backdrop-blur">
-      <button
-        onClick={toggle}
-        className="rounded-full bg-white/20 px-3 py-1 text-sm text-white hover:bg-white/30"
-      >
-        {playing ? 'Pause' : 'Play'}
-      </button>
-      <button onClick={next} className="text-sm text-white/70 hover:text-white">
-        Next
-      </button>
-      <span className="flex-1 truncate text-sm text-white/80">{track.name}</span>
-      <input
-        type="range"
-        min={0}
-        max={1}
-        step={0.05}
-        value={volume}
-        onChange={(e) => setVolume(Number(e.target.value))}
-        className="w-20 accent-red-500"
-      />
-      <audio
-        ref={ref}
-        src={src}
-        loop
-        autoPlay={playing}
-        onEnded={next}
-      />
-    </div>
+    <section className="flex flex-col gap-3">
+      <div className="grid grid-cols-3 gap-2">
+        {tracks.map((track, i) => {
+          const Icon = ICONS[track.kind]
+          return (
+            <button
+              key={track.kind}
+              onClick={() => (playing && index === i ? stop() : play(i))}
+              aria-pressed={playing && index === i}
+              style={{ background: track.image }}
+              className={`flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold text-white outline-2 outline-offset-2 transition active:scale-95 ${
+                index === i ? 'outline-primary' : 'outline-transparent'
+              }`}
+            >
+              <Icon />
+              <span className="max-w-full truncate px-1">{t.tracks[track.kind]}</span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => (playing ? stop() : play(index))}
+          aria-label={playing ? t.pause : t.play}
+          title={playing ? t.pause : t.play}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition hover:opacity-90 active:scale-95"
+        >
+          {playing ? <PauseIcon /> : <PlayIcon />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={volume}
+          onChange={(e) => changeVolume(Number(e.target.value))}
+          aria-label={t.volume}
+          className="min-w-0 flex-1 accent-[var(--primary)]"
+        />
+      </div>
+      <MusicLink />
+    </section>
   )
 }
