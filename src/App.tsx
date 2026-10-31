@@ -1,57 +1,92 @@
-import { useState } from 'react'
-import { StoreProvider, useStore } from './store'
+import { useEffect, useState } from 'react'
+import { useStore } from './context'
+import { LocaleContext } from './i18n/react'
+import type { Locale } from './i18n/locales'
+import { accentFor, onColor } from './lib/accent'
 import { backgrounds } from './lib/assets'
-import Timer from './components/Timer'
-import CategoryPicker from './components/CategoryPicker'
-import Stats from './components/Stats'
-import Settings from './components/Settings'
+import type { ColorMode } from './lib/theme'
+import { StoreProvider } from './store'
+import { usePreferences } from './usePreferences'
 import AudioPlayer from './components/AudioPlayer'
+import CategoryPicker from './components/CategoryPicker'
+import Footer from './components/Footer'
+import Header from './components/Header'
+import Settings from './components/Settings'
+import Stats from './components/Stats'
+import Timer from './components/Timer'
 
-function Shell() {
-  const { bg } = useStore()
+interface ShellProps {
+  locale: Locale
+  mode: ColorMode
+  onLocale: (locale: Locale) => void
+  onToggleMode: () => void
+}
+
+const CARD = 'card rounded-[18px] border border-line bg-paper p-5'
+
+function Shell(props: ShellProps) {
+  const { bg, settings } = useStore()
   const [showSettings, setShowSettings] = useState(false)
-  const background = backgrounds[bg]?.value ?? backgrounds[0].value
+  const background = backgrounds[bg]?.value ?? ''
+  const glass = settings.glass && Boolean(background)
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.glass = String(glass)
+    const primary = accentFor(settings.accent, props.mode)
+    root.style.setProperty('--primary', primary)
+    root.style.setProperty('--on-primary', onColor(primary))
+  }, [glass, settings.accent, props.mode])
 
   return (
-    <main
-      className="min-h-full w-full"
-      style={{ background, transition: 'background 0.4s ease' }}
-    >
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-6">
-        <header className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-white">🍅 Simple Pomodoro</h1>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
-          >
-            Settings
-          </button>
-        </header>
-
-        <div className="mt-2">
-          <Timer />
+    <>
+      {background && (
+        <div className="fixed inset-0 -z-10 overflow-hidden">
+          <div
+            className="absolute -inset-10"
+            style={{ background, filter: `blur(${settings.blur}px)` }}
+          />
+          <div
+            className={`absolute inset-0 ${props.mode === 'dark' ? 'bg-black' : 'bg-white'}`}
+            style={{ opacity: settings.dim / 100 }}
+          />
         </div>
+      )}
 
-        <CategoryPicker />
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 p-4 lg:max-w-4xl">
+        <Header {...props} onSettings={() => setShowSettings(true)} />
 
-        <div className="rounded-2xl bg-black/20 p-4 backdrop-blur">
-          <Stats />
-        </div>
+        <main className="grid flex-1 grid-cols-[minmax(0,1fr)] content-start gap-4 lg:grid-cols-2 lg:content-center">
+          <div className={`${CARD} flex flex-col gap-6`}>
+            <Timer />
+            <CategoryPicker />
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className={CARD}>
+              <Stats />
+            </div>
+            <div className={CARD}>
+              <AudioPlayer />
+            </div>
+          </div>
+        </main>
 
-        <div className="mt-auto">
-          <AudioPlayer />
-        </div>
+        <Footer />
       </div>
 
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-    </main>
+    </>
   )
 }
 
 export default function App() {
+  const { locale, mode, changeLocale, toggleMode } = usePreferences()
+
   return (
-    <StoreProvider>
-      <Shell />
-    </StoreProvider>
+    <LocaleContext value={locale}>
+      <StoreProvider>
+        <Shell locale={locale} mode={mode} onLocale={changeLocale} onToggleMode={toggleMode} />
+      </StoreProvider>
+    </LocaleContext>
   )
 }

@@ -17,9 +17,13 @@ The lightweight sibling of the larger "Pomodoro / Solanum" project.
 
 - Focus / short break / long break with configurable durations and auto-cycle
 - Tag each focus session with a category; stats per category (today / week / all-time)
-- Settings: durations, rounds, auto-start, completion sound
-- Background switcher (gradients out of the box)
-- Optional ambience player (add your own tracks — see `CREDITS.md`)
+- Settings: durations, rounds, time display, auto-start, completion sound, notification
+- Main color picker
+- Background switcher with dim, blur and glass cards
+- Optional ambience player (rain, waves, brown noise), independent of the timer
+- Your own music: paste a YouTube, Spotify or SoundCloud link
+- Light and dark theme, English and Spanish (same `color-mode` and `preferred-lang` keys as chat-stats)
+- Floating timer (video Picture-in-Picture) where the browser supports it
 - Export / import your data as JSON
 
 ## Develop
@@ -37,19 +41,19 @@ pnpm build
 pnpm preview
 ```
 
-## Lint
+## Lint and test
 
 ```bash
 pnpm lint
+pnpm test
 ```
 
 ## Deploy to GitHub Pages
 
-`vite.config.ts` sets `base: '/simple-pomo/'`. Rename it if the repo name differs.
-Build and publish `dist/` with a GitHub Actions workflow (Pages) or push `dist/` to the
-`gh-pages` branch. Then enable Pages in the repo settings.
+Pushes to `main` run `.github/workflows/deploy.yml`, which checks the code and publishes
+`dist/`. `vite.config.ts` sets `base: '/simple-pomo/'`, so rename it if the repo name differs.
 
 ## Assets
 
-No third-party media is bundled by default. See `CREDITS.md` for vetted free sources and
-how to add background images and ambience tracks.
+No third-party media is bundled. See `CREDITS.md` for vetted free sources and how to add
+background images and ambience.

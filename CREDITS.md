@@ -1,15 +1,16 @@
 # Credits
 
-The app ships with gradient backgrounds and a dependency-free completion beep, so no
-third-party media is bundled by default. When you add background images or ambience
-tracks, list each one here with its source and license.
+The app ships with original gradient and SVG backgrounds, ambience synthesized in the
+browser with the Web Audio API, and a dependency-free completion beep, so no third-party
+media is bundled. When you add a third-party image, list it here with its source and
+license.
 
 ## How to add assets
 
 - **Backgrounds:** drop images in `public/backgrounds/` and add entries to `backgrounds`
-  in `src/lib/assets.ts` using `imageBackground('backgrounds/your-file.jpg')`.
-- **Ambience tracks:** drop `.mp3` files in `public/audio/` and add entries to `tracks`
-  in `src/lib/assets.ts` (`{ name: 'Rain', src: 'audio/rain.mp3' }`).
+  in `src/lib/assets.ts` using `imageBackground('your-file.jpg')`.
+- **Ambience:** add a kind to `startAmbience` in `src/lib/ambience.ts` and an entry to
+  `tracks` in `src/lib/assets.ts`.
 
 ## Vetted free sources (check each item's license page before bundling)
 
@@ -41,4 +42,5 @@ tracks, list each one here with its source and license.
 
 | Asset | Type | Source | License |
 | ----- | ---- | ------ | ------- |
-| _(none yet)_ | | | |
+| `public/backgrounds/*.svg` | Image | Original, made for this project | Same as the project |
+| Rain, Waves, Brown noise | Audio | Synthesized at runtime | Same as the project |
