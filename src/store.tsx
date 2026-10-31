@@ -1,69 +1,38 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-
-export type Mode = 'focus' | 'short' | 'long'
-
-export interface Session {
-  id: string
-  category: string
-  minutes: number
-  endedAt: number
-}
-
-export interface Settings {
-  focus: number
-  short: number
-  long: number
-  rounds: number
-  autoStart: boolean
-  sound: boolean
-}
-
-export interface Persisted {
-  categories: string[]
-  activeCategory: string
-  sessions: Session[]
-  settings: Settings
-  bg: number
-}
+import { StoreContext } from './context'
+import type { Store } from './context'
+import { useMessages } from './i18n/react'
+import { sendNotification } from './lib/notify'
+import { DEFAULT, parseBackup, readTimer, sanitize } from './lib/persist'
+import type { Persisted, SavedTimer, Session, Settings } from './lib/persist'
+import { minutesFor, nextCycle } from './lib/timer'
+import type { Mode } from './lib/timer'
 
 const KEY = 'simple-pomo:v1'
-
-const DEFAULT: Persisted = {
-  categories: ['Work', 'Study', 'Read'],
-  activeCategory: 'Work',
-  sessions: [],
-  settings: { focus: 25, short: 5, long: 15, rounds: 4, autoStart: false, sound: true },
-  bg: 0,
-}
+const TIMER_KEY = 'simple-pomo:timer:v1'
+const MAX_LATE_MS = 120000
 
 function load(): Persisted {
   try {
     const raw = localStorage.getItem(KEY)
-    if (!raw) return DEFAULT
-    const parsed = JSON.parse(raw) as Partial<Persisted>
-    return {
-      ...DEFAULT,
-      ...parsed,
-      settings: { ...DEFAULT.settings, ...parsed.settings },
-      categories: parsed.categories?.length ? parsed.categories : DEFAULT.categories,
-    }
+    return raw ? sanitize(JSON.parse(raw)) : DEFAULT
   } catch {
     return DEFAULT
   }
 }
 
-function minutesFor(mode: Mode, s: Settings): number {
-  if (mode === 'focus') return s.focus
-  if (mode === 'short') return s.short
-  return s.long
+function loadTimer(): SavedTimer | null {
+  try {
+    const raw = localStorage.getItem(TIMER_KEY)
+    return raw ? readTimer(JSON.parse(raw)) : null
+  } catch {
+    return null
+  }
+}
+
+function secondsUntil(endAt: number): number {
+  return Math.ceil((endAt - Date.now()) / 1000)
 }
 
 function beep() {
@@ -92,40 +61,20 @@ function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 }
 
-export interface Store {
-  categories: string[]
-  activeCategory: string
-  sessions: Session[]
-  settings: Settings
-  bg: number
-  mode: Mode
-  running: boolean
-  remaining: number
-  completedFocus: number
-  start: () => void
-  pause: () => void
-  reset: () => void
-  skip: () => void
-  setMode: (mode: Mode) => void
-  setActiveCategory: (c: string) => void
-  addCategory: (c: string) => void
-  removeCategory: (c: string) => void
-  updateSettings: (patch: Partial<Settings>) => void
-  setBg: (i: number) => void
-  clearStats: () => void
-  exportData: () => void
-  importData: (json: string) => boolean
-}
-
-const StoreContext = createContext<Store | null>(null)
-
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const t = useMessages().notification
   const [persisted, setPersisted] = useState<Persisted>(load)
-  const [mode, setModeState] = useState<Mode>('focus')
-  const [running, setRunning] = useState(false)
-  const [remaining, setRemaining] = useState(persisted.settings.focus * 60)
-  const [completedFocus, setCompletedFocus] = useState(0)
-  const endRef = useRef<number>(0)
+  const [saved] = useState(loadTimer)
+  const [mode, setModeState] = useState<Mode>(saved?.mode ?? 'focus')
+  const [view, setView] = useState<Mode>(saved?.mode ?? 'focus')
+  const [endAt, setEndAt] = useState<number | null>(saved?.endAt ?? null)
+  const [remaining, setRemaining] = useState(() => {
+    if (!saved) return persisted.settings.focus * 60
+    return saved.endAt === null ? saved.remaining : Math.max(0, secondsUntil(saved.endAt))
+  })
+  const [completedFocus, setCompletedFocus] = useState(saved?.completedFocus ?? 0)
+  const running = endAt !== null
+  const sessionActive = running || remaining < minutesFor(mode, persisted.settings) * 60
 
   useEffect(() => {
     try {
@@ -135,101 +84,124 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [persisted])
 
+  const pausedSeconds = running ? 0 : remaining
+  useEffect(() => {
+    try {
+      const timer: SavedTimer = { mode, endAt, remaining: pausedSeconds, completedFocus }
+      localStorage.setItem(TIMER_KEY, JSON.stringify(timer))
+    } catch {
+      void 0
+    }
+  }, [mode, endAt, pausedSeconds, completedFocus])
+
   const patch = useCallback((p: Partial<Persisted>) => {
     setPersisted((prev) => ({ ...prev, ...p }))
   }, [])
 
-  const complete = useCallback(() => {
-    if (persisted.settings.sound) beep()
-    setPersisted((prev) => {
-      if (mode === 'focus') {
+  const advance = (finished: boolean, finishedAt = Date.now()) => {
+    const { settings } = persisted
+    const next = nextCycle(mode, completedFocus, settings.rounds, finished)
+    const seconds = minutesFor(next.mode, settings) * 60
+
+    if (finished) {
+      if (settings.sound) beep()
+      if (settings.notify) {
+        void sendNotification(
+          mode === 'focus' ? t.focusDone : t.breakDone,
+          next.mode === 'focus' ? t.toFocus : t.toBreak,
+        )
+      }
+    }
+
+    if (finished && mode === 'focus') {
+      setPersisted((prev) => {
         const session: Session = {
           id: uid(),
           category: prev.activeCategory,
           minutes: prev.settings.focus,
-          endedAt: Date.now(),
+          endedAt: finishedAt,
         }
         return { ...prev, sessions: [...prev.sessions, session] }
-      }
-      return prev
-    })
-
-    if (mode === 'focus') {
-      const next = completedFocus + 1
-      setCompletedFocus(next)
-      const nextMode: Mode = next % persisted.settings.rounds === 0 ? 'long' : 'short'
-      setModeState(nextMode)
-      setRemaining(minutesFor(nextMode, persisted.settings) * 60)
-    } else {
-      setModeState('focus')
-      setRemaining(persisted.settings.focus * 60)
+      })
     }
-    setRunning(persisted.settings.autoStart)
-  }, [mode, completedFocus, persisted.settings])
+
+    setModeState(next.mode)
+    setView(next.mode)
+    setCompletedFocus(next.completedFocus)
+    const late = Date.now() - finishedAt > MAX_LATE_MS
+    const keepGoing = settings.autoStart && (finished || running) && !late
+    const nextEnd = keepGoing ? finishedAt + seconds * 1000 : null
+    setRemaining(nextEnd === null ? seconds : Math.max(0, secondsUntil(nextEnd)))
+    setEndAt(nextEnd)
+  }
+
+  const advanceRef = useRef(advance)
+  useEffect(() => {
+    advanceRef.current = advance
+  })
 
   useEffect(() => {
-    if (!running) return
-    endRef.current = Date.now() + remaining * 1000
+    if (endAt === null) return
     const id = window.setInterval(() => {
-      const left = Math.round((endRef.current - Date.now()) / 1000)
+      const left = secondsUntil(endAt)
       if (left <= 0) {
-        setRemaining(0)
         window.clearInterval(id)
-        complete()
+        advanceRef.current(true, endAt)
       } else {
         setRemaining(left)
       }
     }, 250)
     return () => window.clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running])
+  }, [endAt])
 
-  const start = useCallback(() => {
-    if (remaining <= 0) setRemaining(minutesFor(mode, persisted.settings) * 60)
-    setRunning(true)
-  }, [remaining, mode, persisted.settings])
+  const resume = () => {
+    const seconds = remaining > 0 ? remaining : minutesFor(mode, persisted.settings) * 60
+    setRemaining(seconds)
+    setEndAt(Date.now() + seconds * 1000)
+  }
 
-  const pause = useCallback(() => setRunning(false), [])
+  const start = () => {
+    if (view === mode) {
+      resume()
+      return
+    }
+    const seconds = minutesFor(view, persisted.settings) * 60
+    setModeState(view)
+    setRemaining(seconds)
+    setEndAt(Date.now() + seconds * 1000)
+  }
 
-  const reset = useCallback(() => {
-    setRunning(false)
+  const pause = () => setEndAt(null)
+
+  const reset = () => {
+    setEndAt(null)
     setRemaining(minutesFor(mode, persisted.settings) * 60)
-  }, [mode, persisted.settings])
+  }
 
-  const skip = useCallback(() => {
-    setRunning(false)
-    complete()
-  }, [complete])
+  const skip = () => advance(false)
 
-  const setMode = useCallback(
-    (m: Mode) => {
-      setRunning(false)
-      setModeState(m)
-      setRemaining(minutesFor(m, persisted.settings) * 60)
-    },
-    [persisted.settings],
-  )
+  const setMode = (m: Mode) => {
+    setView(m)
+    if (sessionActive) return
+    setModeState(m)
+    setRemaining(minutesFor(m, persisted.settings) * 60)
+  }
 
   const setActiveCategory = useCallback((c: string) => patch({ activeCategory: c }), [patch])
 
-  const addCategory = useCallback(
-    (c: string) => {
-      const name = c.trim()
-      if (!name) return
-      setPersisted((prev) =>
-        prev.categories.includes(name)
-          ? prev
-          : { ...prev, categories: [...prev.categories, name] },
-      )
-    },
-    [],
-  )
+  const addCategory = useCallback((c: string) => {
+    const name = c.trim()
+    if (!name) return
+    setPersisted((prev) =>
+      prev.categories.includes(name) ? prev : { ...prev, categories: [...prev.categories, name] },
+    )
+  }, [])
 
   const removeCategory = useCallback((c: string) => {
     setPersisted((prev) => {
+      if (prev.categories.length <= 1) return prev
       const categories = prev.categories.filter((x) => x !== c)
-      const activeCategory =
-        prev.activeCategory === c ? categories[0] ?? '' : prev.activeCategory
+      const activeCategory = prev.activeCategory === c ? categories[0] : prev.activeCategory
       return { ...prev, categories, activeCategory }
     })
   }, [])
@@ -262,27 +234,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [persisted])
 
   const importData = useCallback((json: string): boolean => {
-    try {
-      const parsed = JSON.parse(json) as Partial<Persisted>
-      setPersisted({
-        ...DEFAULT,
-        ...parsed,
-        settings: { ...DEFAULT.settings, ...parsed.settings },
-        categories: parsed.categories?.length ? parsed.categories : DEFAULT.categories,
-      })
-      return true
-    } catch {
-      return false
-    }
+    const backup = parseBackup(json)
+    if (!backup) return false
+    setPersisted(backup)
+    return true
   }, [])
 
   const value: Store = {
     ...persisted,
     mode,
+    view,
+    sessionActive,
     running,
     remaining,
     completedFocus,
     start,
+    resume,
     pause,
     reset,
     skip,
@@ -298,10 +265,4 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
 
   return <StoreContext value={value}>{children}</StoreContext>
-}
-
-export function useStore(): Store {
-  const ctx = useContext(StoreContext)
-  if (!ctx) throw new Error('useStore must be used within StoreProvider')
-  return ctx
 }

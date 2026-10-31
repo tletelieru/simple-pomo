@@ -5,19 +5,22 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   base: '/simple-pomo/',
+  server: {
+    allowedHosts: ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.dev'],
+  },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'backgrounds/*.svg'],
       manifest: {
         name: 'Simple Pomodoro',
         short_name: 'Pomo',
         description: 'A simple Pomodoro timer with per-category stats.',
-        theme_color: '#ef4444',
-        background_color: '#0f172a',
+        theme_color: '#17181c',
+        background_color: '#17181c',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
