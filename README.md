@@ -78,3 +78,7 @@ explains how to add more.
 ---
 
 Developed by [tletelieru](https://tletelieru.github.io/tletelieru/) · [GitHub](https://github.com/tletelieru)
+
+## License
+
+All rights reserved. See [LICENSE](LICENSE).
