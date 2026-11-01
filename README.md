@@ -81,4 +81,4 @@ Developed by [tletelieru](https://tletelieru.github.io/tletelieru/) · [GitHub](
 
 ## License
 
-[MIT](LICENSE)
+All rights reserved. See [LICENSE](LICENSE).
