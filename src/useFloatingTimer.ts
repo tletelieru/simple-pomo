@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const WIDTH = 640
-const COMPACT_RATIO = 1
+const SIZE = 640
 
 interface Frame {
   time: string
@@ -55,7 +54,6 @@ export function useFloatingTimer(
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [active, setActive] = useState(false)
-  const [ratio, setRatio] = useState(COMPACT_RATIO)
   const { time, label, progress, accent } = frame
 
   useEffect(() => {
@@ -77,9 +75,8 @@ export function useFloatingTimer(
   useEffect(() => {
     const canvas = canvasRef.current
     if (!active || !canvas) return
-    canvas.height = Math.round(WIDTH / ratio)
     draw(canvas, { time, label, progress, accent })
-  }, [active, ratio, time, label, progress, accent])
+  }, [active, time, label, progress, accent])
 
   useEffect(() => {
     if (!active || !('mediaSession' in navigator)) return
@@ -104,21 +101,15 @@ export function useFloatingTimer(
       }
       if (!canvasRef.current) {
         const canvas = document.createElement('canvas')
-        canvas.width = WIDTH
+        canvas.width = SIZE
+        canvas.height = SIZE
         canvasRef.current = canvas
         video.srcObject = canvas.captureStream()
       }
-      setRatio(COMPACT_RATIO)
-      canvasRef.current.height = Math.round(WIDTH / COMPACT_RATIO)
       draw(canvasRef.current, frame)
       await video.play()
       await metadataLoaded(video)
-      const pipWindow = await video.requestPictureInPicture()
-      const fitWindow = () => {
-        if (pipWindow.width && pipWindow.height) setRatio(pipWindow.width / pipWindow.height)
-      }
-      fitWindow()
-      pipWindow.addEventListener('resize', fitWindow)
+      await video.requestPictureInPicture()
     } catch {
       onError()
     }
