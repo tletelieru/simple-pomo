@@ -37,6 +37,17 @@ describe('App', () => {
     expect(localStorage.getItem('preferred-lang')).toBe('es')
   })
 
+  it('lets a number setting be cleared while typing', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    const input = screen.getByLabelText('Focus (min)') as HTMLInputElement
+    const value = input.value
+    fireEvent.change(input, { target: { value: '' } })
+    expect(input.value).toBe('')
+    fireEvent.blur(input)
+    expect(input.value).toBe(value)
+  })
+
   it('closes settings when tapping outside, not when dragging out of the panel', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))

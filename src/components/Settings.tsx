@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '../context'
 import { useMessages } from '../i18n/react'
 import { accents } from '../lib/accent'
@@ -23,6 +23,32 @@ const SLIDERS = [
 const CHECKBOX = 'h-5 w-5 accent-[var(--primary)]'
 const ACTION =
   'flex-1 rounded-[10px] bg-soft px-4 py-2 text-sm font-semibold transition hover:opacity-80'
+
+interface NumberInputProps {
+  min: number
+  max: number
+  value: number
+  onValue: (value: number) => void
+}
+
+function NumberInput({ min, max, value, onValue }: NumberInputProps) {
+  const [draft, setDraft] = useState<string | null>(null)
+
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      value={draft ?? value}
+      onChange={(e) => {
+        setDraft(e.target.value)
+        if (e.target.value !== '') onValue(Math.min(max, Math.max(min, Number(e.target.value) || min)))
+      }}
+      onBlur={() => setDraft(null)}
+      className="rounded-[10px] bg-soft px-3 py-2 text-ink outline-none focus:ring-2 focus:ring-primary"
+    />
+  )
+}
 
 export default function Settings({ onClose }: Props) {
   const { settings, bg, updateSettings, exportData, importData } = useStore()
@@ -76,16 +102,11 @@ export default function Settings({ onClose }: Props) {
           {NUMS.map((key) => (
             <label key={key} className="flex flex-col justify-end gap-1 text-sm text-muted">
               {t.fields[key]}
-              <input
-                type="number"
+              <NumberInput
                 min={LIMITS[key].min}
                 max={LIMITS[key].max}
                 value={settings[key]}
-                onChange={(e) => {
-                  const { min, max } = LIMITS[key]
-                  updateSettings({ [key]: Math.min(max, Math.max(min, Number(e.target.value) || min)) })
-                }}
-                className="rounded-[10px] bg-soft px-3 py-2 text-ink outline-none focus:ring-2 focus:ring-primary"
+                onValue={(value) => updateSettings({ [key]: value })}
               />
             </label>
           ))}
